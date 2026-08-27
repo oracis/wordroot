@@ -6,17 +6,20 @@ function escapeHtml(s) {
 
 function norm(it) {
   if (typeof it === "string") {
-    return { word: it, uk: "", us: "", breakdown: "", etymology: "", mnemonics: [], usages: [], examples: [], addedAt: 0 };
+    return { word: it, uk: "", us: "", defs: [], breakdown: "", etymology: "", mnemonics: [], usages: [], examples: [], related: [], source: "", addedAt: 0 };
   }
   return {
     word: it.word || "",
     uk: it.uk || "",
     us: it.us || "",
+    defs: it.defs || [],
     breakdown: it.breakdown || "",
     etymology: it.etymology || "",
     mnemonics: it.mnemonics || [],
     usages: it.usages || [],
     examples: it.examples || [],
+    related: it.related || [],
+    source: it.source || "",
     addedAt: it.addedAt || 0
   };
 }
@@ -56,11 +59,74 @@ function render() {
       chrome.storage.local.set({ vocab: ALL }, render);
     });
   });
+  list.querySelectorAll(".card[data-word]").forEach(function (card) {
+    card.addEventListener("click", function (ev) {
+      if (ev.target.closest(".acts")) return; // 点按钮不触发补全
+      completeWord(card.getAttribute("data-word"), card);
+    });
+  });
+}
+
+// 点击卡片重新查词，把快照补全成最新词源（LLM 优先，失败降级有道）
+function completeWord(w, card) {
+  if (card.dataset.updating === "1") return;
+  card.dataset.updating = "1";
+  card.classList.add("updating");
+  toast("↻ 更新「" + w + "」词源…");
+  chrome.runtime.sendMessage({ type: "LOOKUP", word: w }, function (res) {
+    card.dataset.updating = "0";
+    card.classList.remove("updating");
+    if (chrome.runtime.lastError || !res || res.type !== "ok") {
+      toast("更新失败：" + ((res && res.msg) || (chrome.runtime.lastError && chrome.runtime.lastError.message) || "未知错误"));
+      return;
+    }
+    const nd = res.data || {};
+    const idx = ALL.findIndex(function (e) { return e.word.toLowerCase() === w.toLowerCase(); });
+    if (idx < 0) { render(); return; }
+    const old = ALL[idx];
+    const oldJson = JSON.stringify(old);
+    // 用最新查询结果覆盖快照，保留 addedAt；defs 简版与完整词源互不污染
+    const merged = Object.assign({}, old, {
+      word: nd.word || old.word,
+      uk: nd.uk || old.uk,
+      us: nd.us || old.us,
+      defs: nd.defs && nd.defs.length ? nd.defs : old.defs,
+      breakdown: nd.breakdown || old.breakdown || "",
+      etymology: nd.etymology || old.etymology || "",
+      mnemonics: nd.mnemonics || old.mnemonics || [],
+      usages: nd.usages || old.usages || [],
+      examples: nd.examples || old.examples || [],
+      related: nd.related || old.related || [],
+      source: nd.source || old.source || ""
+    });
+    ALL[idx] = merged;
+    chrome.storage.local.set({ vocab: ALL }, function () {
+      render();
+      toast(JSON.stringify(merged) === oldJson ? "已是最新词源" : "✓ 词源已更新");
+    });
+  });
+}
+
+// 页面级轻提示（2.5s 自动消失）
+let _toastEl = null;
+function toast(msg) {
+  if (!_toastEl) {
+    _toastEl = document.createElement("div");
+    _toastEl.style.cssText = "position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:#2b2b2b;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;z-index:99;opacity:0;transition:opacity .2s;pointer-events:none;max-width:80vw";
+    document.body.appendChild(_toastEl);
+  }
+  _toastEl.textContent = msg;
+  _toastEl.style.opacity = "1";
+  clearTimeout(_toastEl._t);
+  _toastEl._t = setTimeout(function () { _toastEl.style.opacity = "0"; }, 2500);
 }
 
 function cardHtml(e) {
-  let h = '<div class="card"><div class="hd">';
+  const incomplete = !e.breakdown && !e.etymology; // 简版快照，词源不完整
+  let h = '<div class="card' + (incomplete ? " incomplete" : "") + '" data-word="' + escapeHtml(e.word) + '" title="点击重新查询，补全词源">';
+  h += '<div class="hd">';
   h += '<span class="w">' + escapeHtml(e.word) + "</span>";
+  if (incomplete) h += '<span class="tag">词源待补全 · 点卡片更新</span>';
   if (e.uk || e.us) h += '<span class="ph">英 ' + escapeHtml(e.uk || "-") + "　美 " + escapeHtml(e.us || "-") + "</span>";
   h += '<span class="date">' + (e.addedAt ? new Date(e.addedAt).toLocaleDateString() : "") + "</span>";
   h += '<span class="acts"><button data-speak="' + escapeHtml(e.word) + '">🔊</button><button data-del="' + escapeHtml(e.word) + '">删除</button></span>';

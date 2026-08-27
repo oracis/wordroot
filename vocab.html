@@ -17,7 +17,10 @@
       .bar button.danger { color: #b3261e; border-color: #e6b3ad; }
       .cnt { color: #9a8a72; font-size: 12px; margin-left: auto; }
       .list { padding: 14px 18px 60px; display: grid; gap: 14px; }
-      .card { background: #fff; border: 1px solid #ece3d6; border-radius: 12px; padding: 14px 16px; }
+      .card { background: #fff; border: 1px solid #ece3d6; border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: box-shadow .15s; }
+      .card:hover { box-shadow: 0 2px 10px rgba(176,106,44,.12); }
+      .card.updating { opacity: .55; pointer-events: none; }
+      .card .tag { display: inline-block; background: #f7ecd8; color: #a06a1e; font-size: 11px; border-radius: 6px; padding: 2px 7px; margin-right: 8px; vertical-align: middle; }
       .card .hd { display: flex; align-items: center; gap: 10px; }
       .card .w { font-size: 20px; font-weight: 700; }
       .card .ph { color: #b06a2c; font-size: 13px; }
