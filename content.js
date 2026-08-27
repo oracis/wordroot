@@ -69,7 +69,7 @@
       requestAnimationFrame(function () { p.classList.add("open"); });
     } else {
       p.classList.remove("open");
-      const SB = 20; // 留出滚动条/视口边距（EPUB iframe 内有 15px 滚动条 + 视觉留白）
+      const SB = 30; // 留出滚动条 + 面板阴影（Chromium iframe 滚动条 15px + 阴影溢出）
       const W = p.offsetWidth || 340;
       const H = p.offsetHeight || 220;
       let top = rect.top - H - 8;

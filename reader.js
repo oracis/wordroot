@@ -220,7 +220,8 @@
       epubEl.style.display = "block";
       epubEl.style.height = Math.max(320, (window.innerHeight || 800) - 120) + "px";
       epubEl.style.overflow = "auto";
-      epubEl.innerHTML = '<div style="padding:40px;text-align:center;color:#9a8a72">加载 EPUB…</div>';
+      // loading 占位：必须用 id，display() 完成后精确 remove（renderTo 是 append 不是 replace）
+      epubEl.innerHTML = '<div id="wr-epub-loading" style="padding:40px;text-align:center;color:#9a8a72">加载 EPUB…</div>';
       setToolbarMode("epub"); // 立刻切换工具栏避免 PDF 按钮误导
       epubBook = ePub(u8);
       const rendition = epubBook.renderTo(epubEl, {
@@ -229,12 +230,17 @@
       });
       epubRendition = rendition;
       rendition.display().then(function () {
+        // 移除 loading 占位（epub-container 已在 loading div 后面 append）
+        const ld = epubEl.querySelector("#wr-epub-loading");
+        if (ld) ld.remove();
         drop.style.display = "none";
         let title = "";
         try { title = (epubBook.package && epubBook.package.metadata && epubBook.package.metadata.title) || ""; } catch (e) {}
         document.getElementById("info").textContent = "EPUB：" + (title || name || "");
         document.getElementById("zoom").textContent = "";
       }).catch(function (e) {
+        const ld = epubEl.querySelector("#wr-epub-loading");
+        if (ld) ld.remove();
         drop.style.display = "block";
         drop.textContent = "把 PDF / EPUB 文件拖到这里，或点「打开 PDF / EPUB」";
         showErr("EPUB 解析失败：" + (e && e.message ? e.message : e));
