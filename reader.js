@@ -258,10 +258,14 @@
   function epubPrev() { if (epubRendition && epubRendition.prev) epubRendition.prev(); }
   function epubNext() { if (epubRendition && epubRendition.next) epubRendition.next(); }
   function epubZoom(delta) {
-    if (!epubRendition || !epubRendition.themes) return;
+    if (!epubRendition) return;
     epubFontSize = Math.max(60, Math.min(220, epubFontSize + delta));
-    const pct = (epubFontSize / 100).toFixed(2);
-    try { epubRendition.themes.fontSize(pct); } catch (e) { /* 某些 EPUB 无主题 */ }
+    // scrolled-doc 模式下 themes.fontSize 对章节 iframe 几乎不生效；直接改所有章节 html 字号（必生效）
+    document.querySelectorAll("#epubContainer iframe").forEach(function (f) {
+      try { f.contentDocument.documentElement.style.fontSize = epubFontSize + "%"; } catch (e) {}
+    });
+    // themes 兜底（对 paginated 模式有效）
+    try { if (epubRendition.themes && epubRendition.themes.fontSize) epubRendition.themes.fontSize(epubFontSize + "%"); } catch (e) {}
     const el = document.getElementById("epubZoom");
     if (el) el.textContent = epubFontSize + "%";
   }
