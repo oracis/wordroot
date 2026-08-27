@@ -69,26 +69,18 @@
       requestAnimationFrame(function () { p.classList.add("open"); });
     } else {
       p.classList.remove("open");
-      const SB = 30; // 留出滚动条 + 面板阴影（Chromium iframe 滚动条 15px + 阴影溢出）
+      const SB = 40; // 右滚动条+阴影余量（EPUB iframe 测试需 ~30+，保守取 40）
       const W = p.offsetWidth || 340;
       const H = p.offsetHeight || 220;
       let top = rect.top - H - 8;
-      // 选区上方不够时 → 选区下方，贴选区左下角（不再以"页面宽度"居中，避被右滚动条遮）
-      if (top < 8) {
-        top = rect.bottom + 8;
-      }
-      let left = rect.left;
-      if (top === rect.bottom + 8) {
-        // 选区下方：贴选区左缘；超出右侧则贴选区右缘-面板宽
-        if (left + W > window.innerWidth - SB) {
-          left = rect.right - W;
-        }
-      } else {
-        // 选区上方：居中选区，避开右滚动条
-        left = rect.left + rect.width / 2 - W / 2;
-      }
-      if (left + W > window.innerWidth - SB) left = window.innerWidth - W - SB;
+      if (top < 8) top = rect.bottom + 8;
+      // 选区上方：居中选区；选区下方：贴选区左缘（更直观）
+      let left = (top === rect.bottom + 8) ? rect.left : (rect.left + rect.width / 2 - W / 2);
+      // 统一限位：右边留 SB，余量不足则夹到右边
+      const maxLeft = window.innerWidth - W - SB;
+      if (left > maxLeft) left = maxLeft;
       if (left < 8) left = 8;
+      // 底部超出视口则向上调（长面板 + 选区靠底时）
       if (top + H > window.innerHeight - 8) top = window.innerHeight - H - 8;
       if (top < 8) top = 8;
       p.style.top = top + "px";
