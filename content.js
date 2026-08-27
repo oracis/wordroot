@@ -77,7 +77,17 @@
       p.style.top = top + "px";
       p.style.left = left + "px";
     }
+    // 10 秒超时兜底：避免 background 异常 / SW 未唤醒导致 panel 永远停在查询中
+    let done = false;
+    const fallback = setTimeout(function () {
+      if (done) return;
+      done = true;
+      body.innerHTML = '<div class="wr-needkey">查询超时，请重试或刷新扩展。</div>';
+    }, 10000);
     chrome.runtime.sendMessage({ type: "LOOKUP", word: word }, function (res) {
+      if (done) return;
+      done = true;
+      clearTimeout(fallback);
       if (chrome.runtime.lastError) {
         body.innerHTML = '<div class="wr-loading">扩展未响应</div>';
         return;

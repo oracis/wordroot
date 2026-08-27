@@ -136,7 +136,9 @@ JSON 结构必须如下：
 
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg && msg.type === "LOOKUP") {
-    handleLookup(msg.word).then(sendResponse);
+    handleLookup(msg.word).then(sendResponse).catch(function (e) {
+      sendResponse({ type: "error", msg: "查询异常：" + (e && e.message ? e.message : String(e)) });
+    });
     return true; // 异步返回
   }
   if (msg && msg.type === "TTS_ONLINE") {
@@ -367,6 +369,15 @@ async function fetchYoudao(word) {
 }
 
 async function handleLookup(word) {
+  try {
+    return await handleLookupInner(word);
+  } catch (e) {
+    // 外层兜底：任何 await 异常（storage/fetch/JSON 解析等）都不能让 panel 永远"查询中"
+    console.error("[wordroot] handleLookup 未捕获异常:", e && e.message, e);
+    return { type: "error", msg: "查询失败：" + (e && e.message ? e.message : String(e)) };
+  }
+}
+async function handleLookupInner(word) {
   const key = word.toLowerCase();
   const cached = await getCache(key);
   if (cached) return { type: "ok", data: cached, cached: true };
