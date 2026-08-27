@@ -61,7 +61,8 @@
 
   function loadFromUrl(url) {
     clearErr();
-    if (!pdfjsOk) {
+    const isEpub = /\.epub(\?|#|$)/i.test(url || "");
+    if (!isEpub && !pdfjsOk) {
       showErr("pdf.js 未加载，无法打开 PDF。请先在扩展管理页点「刷新」后重试。");
       return;
     }
@@ -73,17 +74,23 @@
         return r.arrayBuffer();
       })
       .then(function (buf) {
-        const data = new Uint8Array(buf);
-        return pdfjsLib.getDocument({ data: data }).promise;
+        if (isEpub) {
+          // 传 ArrayBuffer（Uint8Array 会让 epub.js 解析挂起）
+          loadEpub(buf, url.split("/").pop());
+          return null;
+        }
+        return pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
       })
       .then(function (pdf) {
+        if (!pdf) return;
         pdfDoc = pdf;
+        showPdfMode();
         renderPage(1);
       })
       .catch(function (e) {
         showErr(
-          "远程 PDF 加载失败：" + (e && e.message ? e.message : e) +
-          "\n可能原因：该地址需要登录/cookie，或扩展无访问权限。\n可改用本页「打开 PDF」按钮选择本地文件。"
+          "远程文件加载失败：" + (e && e.message ? e.message : e) +
+          "\n可能原因：该地址需要登录/cookie，或扩展无访问权限。\n可改用本页「打开 PDF / EPUB」按钮选择本地文件。"
         );
       });
   }
@@ -153,30 +160,105 @@
   function loadFile(file) {
     if (!file) return;
     clearErr();
-    if (!pdfjsOk) {
-      showErr("pdf.js 未加载，无法打开 PDF。请先在扩展管理页点「刷新」后重试。");
-      return;
-    }
+    const isEpub = /\.epub$/i.test(file.name || "");
     drop.textContent = "解析中…";
     const reader = new FileReader();
     reader.onerror = function () { showErr("读取文件失败：" + (reader.error && reader.error.message ? reader.error.message : "未知")); drop.style.display = "block"; };
     reader.onload = function () {
       try {
         const data = new Uint8Array(reader.result);
-        pdfjsLib.getDocument({ data: data }).promise.then(function (pdf) {
-          pdfDoc = pdf;
-          drop.style.display = "none";
-          renderPage(1);
-        }).catch(function (e) {
-          drop.style.display = "block";
-          drop.textContent = "把 PDF 文件拖到这里，或点「打开 PDF」";
-          showErr("PDF 解析失败：" + (e && e.message ? e.message : e));
-        });
+        if (isEpub) {
+          // 必须传 ArrayBuffer：epub.js 对 Uint8Array 解析会静默挂起
+          loadEpub(reader.result, file.name);
+        } else {
+          if (!pdfjsOk) { showErr("pdf.js 未加载，无法打开 PDF。请先在扩展管理页点「刷新」后重试。"); return; }
+          pdfjsLib.getDocument({ data: data }).promise.then(function (pdf) {
+            pdfDoc = pdf;
+            drop.style.display = "none";
+            showPdfMode();
+            renderPage(1);
+          }).catch(function (e) {
+            drop.style.display = "block";
+            drop.textContent = "把 PDF / EPUB 文件拖到这里，或点「打开 PDF / EPUB」";
+            showErr("PDF 解析失败：" + (e && e.message ? e.message : e));
+          });
+        }
       } catch (e) {
         showErr("打开失败：" + (e && e.message ? e.message : e));
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  // ---- EPUB（epub.js）----
+  let epubBook = null;
+  let epubRendition = null;
+
+  function showPdfMode() {
+    document.getElementById("pdfContainer").style.display = "";
+    document.getElementById("epubContainer").style.display = "none";
+    document.querySelectorAll(".pdfonly").forEach(function (el) { el.style.display = ""; });
+  }
+  function showEpubMode() {
+    document.getElementById("pdfContainer").style.display = "none";
+    document.getElementById("epubContainer").style.display = "block";
+    document.querySelectorAll(".pdfonly").forEach(function (el) { el.style.display = "none"; });
+  }
+
+  function loadEpub(u8, name) {
+    if (typeof ePub === "undefined") { showErr("epub.js 未加载，无法打开 EPUB。请先在扩展管理页点「刷新」后重试。"); return; }
+    try {
+      if (epubBook) { try { epubRendition && epubRendition.destroy(); } catch (e) {} epubBook = null; }
+      const epubEl = document.getElementById("epubContainer");
+      // epub.js 需要容器有确定尺寸才渲染（display:none / 纯 CSS calc 会挂起）：先显示并给固定像素高度
+      epubEl.style.display = "block";
+      epubEl.style.height = Math.max(320, (window.innerHeight || 800) - 120) + "px";
+      epubEl.style.overflow = "auto";
+      epubEl.innerHTML = '<div style="padding:40px;text-align:center;color:#9a8a72">加载 EPUB…</div>';
+      epubBook = ePub(u8);
+      const rendition = epubBook.renderTo(epubEl, {
+        width: "100%", height: "100%", spread: "none", flow: "scrolled-doc",
+        allowScriptedContent: true // 关键：否则章节 iframe sandbox 禁脚本，注入的 content.js 无法执行
+      });
+      epubRendition = rendition;
+      rendition.display().then(function () {
+        drop.style.display = "none";
+        let title = "";
+        try { title = (epubBook.package && epubBook.package.metadata && epubBook.package.metadata.title) || ""; } catch (e) {}
+        document.getElementById("info").textContent = "EPUB：" + (title || name || "");
+        document.getElementById("zoom").textContent = "";
+      }).catch(function (e) {
+        drop.style.display = "block";
+        drop.textContent = "把 PDF / EPUB 文件拖到这里，或点「打开 PDF / EPUB」";
+        showErr("EPUB 解析失败：" + (e && e.message ? e.message : e));
+      });
+      // 每次章节渲染（iframe 重建）后注入 content.js 实现划词
+      rendition.on("rendered", function (section, view) {
+        injectContentScript(view && view.iframe);
+      });
+    } catch (e) {
+      showErr("EPUB 打开失败：" + (e && e.message ? e.message : e));
+    }
+  }
+
+  function injectContentScript(iframe) {
+    if (!iframe) return;
+    const tryInject = function () {
+      try {
+        const doc = iframe.contentDocument;
+        if (!doc || doc.querySelector("script[data-wr-injected]")) return;
+        const s = doc.createElement("script");
+        s.dataset.wrInjected = "1";
+        // 用绝对 URL：epub.js 会给 iframe 设 OEBPS 的 base，相对路径会解析错位
+        s.src = new URL("content.js", document.baseURI).href;
+        doc.body.appendChild(s);
+        console.log("[reader] 已注入 content.js 到 EPUB 章节");
+      } catch (e) { console.error("[reader] 注入失败:", e); }
+    };
+    try {
+      if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") { tryInject(); }
+      else iframe.addEventListener("load", tryInject);
+    } catch (e) { console.error("[reader] iframe 访问失败:", e); }
   }
 
   fileInput.addEventListener("change", function (e) {

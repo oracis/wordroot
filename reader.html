@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PDF 阅读器 · 词源划词</title>
+    <title>阅读器 · 词源划词</title>
     <link rel="stylesheet" href="content.css" />
     <style>
       * { box-sizing: border-box; }
@@ -26,22 +26,25 @@
   </head>
   <body>
     <div class="toolbar">
-      <label for="file">📂 打开 PDF</label>
-      <input id="file" type="file" accept="application/pdf,.pdf" />
-      <button id="prev">← 上一页</button>
-      <button id="next">下一页 →</button>
+      <label for="file">📂 打开 PDF / EPUB</label>
+      <input id="file" type="file" accept="application/pdf,.pdf,.epub,application/epub+zip" />
+      <button id="prev" class="pdfonly">← 上一页</button>
+      <button id="next" class="pdfonly">下一页 →</button>
       <span class="info" id="info">第 0 / 0 页</span>
-      <button id="zoomOut">－</button>
+      <button id="zoomOut" class="pdfonly">－</button>
       <span class="info" id="zoom">130%</span>
-      <button id="zoomIn">＋</button>
+      <button id="zoomIn" class="pdfonly">＋</button>
     </div>
     <div id="stage">
       <div id="err" style="display:none;margin:12px auto;max-width:600px;padding:10px 14px;background:#5a2222;color:#ffe;border-radius:8px;font-size:13px;white-space:pre-wrap"></div>
-      <div class="drop" id="drop">把 PDF 文件拖到这里，或点「打开 PDF」<br />（划词即可看词源，与网页体验一致）</div>
-      <div id="pdfContainer"></div>
+      <div class="drop" id="drop">把 PDF / EPUB 文件拖到这里，或点「打开 PDF / EPUB」<br />（划词即可看词源，与网页体验一致）</div>
+      <div id="pdfContainer" style="display:none"></div>
+      <div id="epubContainer" style="display:none;position:relative;margin:0 auto;max-width:820px;height:calc(100vh - 110px);background:#f2eee7;color:#2b2b2b;border-radius:10px;overflow:auto"></div>
     </div>
 
     <script src="pdfjs/pdf.min.js"></script>
+    <script src="epubjs/jszip.min.js"></script>
+    <script src="epubjs/epub.min.js"></script>
     <script src="reader.js"></script>
     <script src="content.js"></script>
   </body>
