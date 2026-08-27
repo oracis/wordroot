@@ -264,6 +264,35 @@ function loadOfflineDict() {
   });
 }
 
+// 简易英文词形还原（lemma）：有道 jsonapi 的音标只挂在原型上，变形词（models/children/went...）需回填
+// 不规则表（高频），规则后缀补齐大部分
+function simpleLemma(w) {
+  w = (w || "").toLowerCase();
+  const irregs = {
+    children: "child", men: "man", women: "woman", people: "person", mice: "mouse", geese: "goose",
+    teeth: "tooth", feet: "foot", data: "datum", criteria: "criterion",
+    analyses: "analysis", crises: "crisis", theses: "thesis", diagnoses: "diagnosis",
+    went: "go", gone: "go", came: "come", said: "say", took: "take", taken: "take",
+    made: "make", given: "give", seen: "see", known: "know", written: "write",
+    spoken: "speak", broken: "break", chosen: "choose", driven: "drive", eaten: "eat",
+    was: "be", were: "be", been: "be",
+    better: "good", best: "good", worse: "bad", worst: "bad",
+    has: "have", does: "do"
+  };
+  if (irregs[w]) return irregs[w];
+  if (w.length <= 3) return w;
+  // -ies → -y（parties → party）
+  if (w.endsWith("ies")) return w.slice(0, -3) + "y";
+  // -ing / -ed 粗略：去后缀后查 offline
+  if (w.endsWith("ing") && w.length > 4) return w.slice(0, -3);
+  if (w.endsWith("ed") && w.length > 3) return w.slice(0, -1);
+  // -es（boxes→box, watches→watch, buses→bus）
+  if (w.endsWith("es") && w.length > 3) return w.slice(0, -2);
+  // -s（models→model, cats→cat）
+  if (w.endsWith("s") && w.length > 3) return w.slice(0, -1);
+  return w;
+}
+
 function phoneticOf(v) {
   if (!v) return "";
   let p = typeof v === "string" ? v : (v[0] && v[0].phonetic) || "";
@@ -346,7 +375,16 @@ async function handleLookup(word) {
   // 2) 离线高频词库（COCA 前 3000，含音标+简明释义）
   const offline = await loadOfflineDict();
   if (offline[key]) {
-    const d = Object.assign({ word: word }, offline[key]);
+    let d = Object.assign({ word: word }, offline[key]);
+    // 变形词常无音标：有道 jsonapi 只在原型挂音标；回填同词库的原型音标
+    if (!d.uk && !d.us) {
+      const lemma = simpleLemma(key);
+      if (lemma !== key && offline[lemma] && (offline[lemma].uk || offline[lemma].us)) {
+        d.uk = offline[lemma].uk;
+        d.us = offline[lemma].us;
+        d._lemma = lemma; // 标记用了原型音标
+      }
+    }
     d.source = "offline";
     return { type: "ok", data: d, cached: false };
   }
