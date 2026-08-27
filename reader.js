@@ -265,14 +265,25 @@
     const tryInject = function () {
       try {
         const doc = iframe.contentDocument;
-        if (!doc || doc.querySelector("script[data-wr-injected]")) return;
-        const s = doc.createElement("script");
-        s.dataset.wrInjected = "1";
-        // 用绝对 URL：epub.js 会给 iframe 设 OEBPS 的 base，相对路径会解析错位
-        s.src = new URL("content.js", document.baseURI).href;
-        doc.body.appendChild(s);
-        console.log("[reader] 已注入 content.js 到 EPUB 章节");
-      } catch (e) { console.error("[reader] 注入失败:", e); }
+        if (!doc) return;
+        // 1) 注入 content.css：EPUB iframe 内无扩展样式表，面板/划词样式裸着 → 与正文融在一起
+        if (!doc.querySelector('link[data-wr-css]')) {
+          const link = doc.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = new URL('content.css', document.baseURI).href;
+          link.setAttribute('data-wr-css', '1');
+          (doc.head || doc.documentElement).appendChild(link);
+        }
+        // 2) 注入 content.js：attach mouseup + 创建面板（用上面注入的样式）
+        if (!doc.querySelector('script[data-wr-injected]')) {
+          const s = doc.createElement('script');
+          s.dataset.wrInjected = '1';
+          // 用绝对 URL：epub.js 会给 iframe 设 OEBPS base，相对路径会解析错位
+          s.src = new URL('content.js', document.baseURI).href;
+          (doc.body || doc.documentElement).appendChild(s);
+          console.log('[reader] 已注入 content.js+css 到 EPUB 章节');
+        }
+      } catch (e) { console.error('[reader] 注入失败:', e); }
     };
     try {
       if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") { tryInject(); }
