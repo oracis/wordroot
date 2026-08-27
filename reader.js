@@ -84,7 +84,7 @@
       .then(function (pdf) {
         if (!pdf) return;
         pdfDoc = pdf;
-        showPdfMode();
+        setToolbarMode("pdf");
         renderPage(1);
       })
       .catch(function (e) {
@@ -175,7 +175,7 @@
           pdfjsLib.getDocument({ data: data }).promise.then(function (pdf) {
             pdfDoc = pdf;
             drop.style.display = "none";
-            showPdfMode();
+            setToolbarMode("pdf");
             renderPage(1);
           }).catch(function (e) {
             drop.style.display = "block";
@@ -190,20 +190,23 @@
     reader.readAsArrayBuffer(file);
   }
 
+  // ---- 工具栏：PDF / EPUB 模式按钮互斥显示 + 各自绑定事件 ----
+  function setToolbarMode(mode) {
+    const pdfBtns = document.querySelectorAll(".pdfonly");
+    const epubBtns = document.querySelectorAll(".epubonly");
+    if (mode === "epub") {
+      pdfBtns.forEach(function (el) { el.style.display = "none"; });
+      epubBtns.forEach(function (el) { el.style.display = ""; });
+    } else {
+      epubBtns.forEach(function (el) { el.style.display = "none"; });
+      pdfBtns.forEach(function (el) { el.style.display = ""; });
+    }
+  }
+
   // ---- EPUB（epub.js）----
   let epubBook = null;
   let epubRendition = null;
-
-  function showPdfMode() {
-    document.getElementById("pdfContainer").style.display = "";
-    document.getElementById("epubContainer").style.display = "none";
-    document.querySelectorAll(".pdfonly").forEach(function (el) { el.style.display = ""; });
-  }
-  function showEpubMode() {
-    document.getElementById("pdfContainer").style.display = "none";
-    document.getElementById("epubContainer").style.display = "block";
-    document.querySelectorAll(".pdfonly").forEach(function (el) { el.style.display = "none"; });
-  }
+  let epubFontSize = 100;
 
   function loadEpub(u8, name) {
     if (typeof ePub === "undefined") { showErr("epub.js 未加载，无法打开 EPUB。请先在扩展管理页点「刷新」后重试。"); return; }
@@ -215,6 +218,7 @@
       epubEl.style.height = Math.max(320, (window.innerHeight || 800) - 120) + "px";
       epubEl.style.overflow = "auto";
       epubEl.innerHTML = '<div style="padding:40px;text-align:center;color:#9a8a72">加载 EPUB…</div>';
+      setToolbarMode("epub"); // 立刻切换工具栏避免 PDF 按钮误导
       epubBook = ePub(u8);
       const rendition = epubBook.renderTo(epubEl, {
         width: "100%", height: "100%", spread: "none", flow: "scrolled-doc",
@@ -239,6 +243,18 @@
     } catch (e) {
       showErr("EPUB 打开失败：" + (e && e.message ? e.message : e));
     }
+  }
+
+  // EPUB 翻页 / 字号
+  function epubPrev() { if (epubRendition && epubRendition.prev) epubRendition.prev(); }
+  function epubNext() { if (epubRendition && epubRendition.next) epubRendition.next(); }
+  function epubZoom(delta) {
+    if (!epubRendition || !epubRendition.themes) return;
+    epubFontSize = Math.max(60, Math.min(220, epubFontSize + delta));
+    const pct = (epubFontSize / 100).toFixed(2);
+    try { epubRendition.themes.fontSize(pct); } catch (e) { /* 某些 EPUB 无主题 */ }
+    const el = document.getElementById("epubZoom");
+    if (el) el.textContent = epubFontSize + "%";
   }
 
   function injectContentScript(iframe) {
@@ -268,6 +284,11 @@
   document.getElementById("next").addEventListener("click", function () { renderPage(pageNum + 1); });
   document.getElementById("zoomIn").addEventListener("click", function () { scale = Math.min(3, scale + 0.1); if (pdfDoc) renderPage(pageNum); });
   document.getElementById("zoomOut").addEventListener("click", function () { scale = Math.max(0.5, scale - 0.1); if (pdfDoc) renderPage(pageNum); });
+  // EPUB 翻页 / 字号
+  document.getElementById("epubPrev").addEventListener("click", epubPrev);
+  document.getElementById("epubNext").addEventListener("click", epubNext);
+  document.getElementById("epubZoomIn").addEventListener("click", function () { epubZoom(+10); });
+  document.getElementById("epubZoomOut").addEventListener("click", function () { epubZoom(-10); });
 
   // 拖放：阻止浏览器默认「在标签页打开 PDF」，改由本页解析
   ["dragover", "drop"].forEach(function (ev) {
