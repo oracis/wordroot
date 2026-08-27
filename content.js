@@ -69,11 +69,28 @@
       requestAnimationFrame(function () { p.classList.add("open"); });
     } else {
       p.classList.remove("open");
-      let top = rect.top - p.offsetHeight - 8;
-      if (top < 8) top = rect.bottom + 8;
+      const SB = 20; // 留出滚动条/视口边距（EPUB iframe 内有 15px 滚动条 + 视觉留白）
+      const W = p.offsetWidth || 340;
+      const H = p.offsetHeight || 220;
+      let top = rect.top - H - 8;
+      // 选区上方不够时 → 选区下方，贴选区左下角（不再以"页面宽度"居中，避被右滚动条遮）
+      if (top < 8) {
+        top = rect.bottom + 8;
+      }
       let left = rect.left;
-      if (left + 340 > window.innerWidth - 8) left = window.innerWidth - 348;
+      if (top === rect.bottom + 8) {
+        // 选区下方：贴选区左缘；超出右侧则贴选区右缘-面板宽
+        if (left + W > window.innerWidth - SB) {
+          left = rect.right - W;
+        }
+      } else {
+        // 选区上方：居中选区，避开右滚动条
+        left = rect.left + rect.width / 2 - W / 2;
+      }
+      if (left + W > window.innerWidth - SB) left = window.innerWidth - W - SB;
       if (left < 8) left = 8;
+      if (top + H > window.innerHeight - 8) top = window.innerHeight - H - 8;
+      if (top < 8) top = 8;
       p.style.top = top + "px";
       p.style.left = left + "px";
     }
