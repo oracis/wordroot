@@ -4,11 +4,12 @@
   width: 340px;
   max-height: 70vh;
   overflow-y: auto;
-  background: #fffdf7;
+  /* 显眼分层：纯白 + 深边框 + 重阴影——避免与 EPUB 内容（如浅米黄页脚）颜色相近导致视觉混淆 */
+  background: #ffffff;
   color: #2b2b2b;
-  border: 1px solid #e3dcc8;
+  border: 2px solid #b06a2c;
   border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(176, 106, 44, 0.15);
   font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-size: 13px;
   line-height: 1.6;

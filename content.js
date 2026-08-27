@@ -72,10 +72,19 @@
       const SB = 40; // 右滚动条+阴影余量（EPUB iframe 测试需 ~30+，保守取 40）
       const W = p.offsetWidth || 340;
       const H = p.offsetHeight || 220;
-      let top = rect.top - H - 8;
-      if (top < 8) top = rect.bottom + 8;
+      // 优先选区上方；上下空间都不够时选**更宽**方向，避免压底/压顶
+      const aboveRoom = rect.top - 8;
+      const belowRoom = window.innerHeight - rect.bottom - 8;
+      let top;
+      if (aboveRoom >= H) {
+        top = rect.top - H - 8;
+      } else if (belowRoom >= H) {
+        top = rect.bottom + 8;
+      } else {
+        top = aboveRoom >= belowRoom ? Math.max(8, rect.top - H - 8) : rect.bottom + 8;
+      }
       // 选区上方：居中选区；选区下方：贴选区左缘（更直观）
-      let left = (top === rect.bottom + 8) ? rect.left : (rect.left + rect.width / 2 - W / 2);
+      let left = (top >= rect.bottom) ? rect.left : (rect.left + rect.width / 2 - W / 2);
       // 统一限位：右边留 SB，余量不足则夹到右边
       const maxLeft = window.innerWidth - W - SB;
       if (left > maxLeft) left = maxLeft;
