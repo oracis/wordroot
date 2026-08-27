@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { font-family: sans-serif; padding: 16px; max-width: 440px; color: #2b2b2b; }
+      h3 { margin: 0 0 4px; }
+      p.tip { color: #888; font-size: 12px; margin: 0 0 12px; }
+      label { display: block; margin: 10px 0 4px; font-size: 13px; }
+      input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 8px; }
+      button { margin-top: 14px; padding: 8px 14px; border: 0; border-radius: 8px; background: #b06a2c; color: #fff; cursor: pointer; }
+      #msg { color: #2e8b57; margin-top: 8px; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h3>词源划词 · 设置</h3>
+    <p class="tip">词源联想由你自己的 LLM Key 生成，结果本地缓存，划词内容不出本机。</p>
+    <label>API Key（OpenAI 兼容）</label>
+    <input id="apiKey" type="password" placeholder="sk-..." />
+    <label>Base URL（可选，默认 OpenAI）</label>
+    <input id="baseURL" placeholder="https://api.openai.com/v1" />
+    <label>模型名</label>
+    <input id="model" placeholder="gpt-4o-mini" />
+
+    <hr style="border:0;border-top:1px solid #eee;margin:16px 0" />
+    <h3 style="margin:0 0 4px">朗读发音</h3>
+    <p class="tip">默认用有道在线发音：免费、无需 Key、不用自建服务器，装完即用。（Chrome 本机语音在部分 Windows 上已知无声。）</p>
+    <label>发音源</label>
+    <select id="ttsMode" style="width:100%;padding:8px;box-sizing:border-box;border:1px solid #ccc;border-radius:8px">
+      <option value="youdao">在线发音（有道，免服务器免 Key）</option>
+      <option value="local">本机语音（chrome.tts / speechSynthesis）</option>
+      <option value="online">自建中转（edge-tts，需自部署）</option>
+    </select>
+    <label>中转地址（仅「自建中转」模式需要）</label>
+    <input id="ttsRelay" placeholder="http://localhost:8787" />
+    <p class="tip">自建中转为高级选项：本地跑 tts-relay/server.py，或部署到公网后填公网地址。</p>
+
+    <hr style="border:0;border-top:1px solid #eee;margin:16px 0" />
+    <h3 style="margin:0 0 4px">PDF 划词</h3>
+    <p class="tip">浏览器自带的 PDF 视图是受保护框架，扩展无法注入，划词框永远弹不出。开启后，点开 PDF 链接会自动用本扩展的 pdf.js 阅读器打开，文字可控，划词照常工作。（本地 .pdf 文件请用本页/弹窗的「打开本地 PDF」按钮选择。）</p>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <input id="autoPdf" type="checkbox" style="width:auto" />
+      <span>自动接管 PDF 链接（默认开）</span>
+    </label>
+
+    <button id="save">保存</button>
+    <div id="msg"></div>
+    <p style="margin-top:14px"><a id="openVocab" style="color:#b06a2c;cursor:pointer">📚 打开生词本</a></p>
+    <script src="options.js"></script>
+  </body>
+</html>

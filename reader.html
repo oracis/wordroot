@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PDF 阅读器 · 词源划词</title>
+    <link rel="stylesheet" href="content.css" />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #525659; color: #eee; }
+      .toolbar { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: #3a3d40; border-bottom: 1px solid #2a2c2e; }
+      .toolbar button, .toolbar label { padding: 6px 12px; background: #5a5e62; color: #fff; border: 0; border-radius: 6px; cursor: pointer; font-size: 13px; }
+      .toolbar label { display: inline-block; }
+      .toolbar .info { color: #cfd2d4; font-size: 13px; }
+      .toolbar input[type="file"] { display: none; }
+      #stage { padding: 24px; overflow: auto; min-height: calc(100vh - 52px); }
+      #pdfContainer { position: relative; margin: 0 auto; width: max-content; }
+      .page { position: relative; margin: 0 auto 18px; box-shadow: 0 2px 12px rgba(0,0,0,.4); background: #fff; }
+      .page canvas { display: block; }
+      .textLayer { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; line-height: 1; opacity: 1; }
+      .textLayer > span { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 100%; }
+      .textLayer ::selection { background: rgba(20, 120, 255, .3); color: transparent; }
+      .drop { border: 2px dashed #888; border-radius: 12px; padding: 60px; text-align: center; color: #cfd2d4; margin: 40px auto; max-width: 480px; }
+      .drop.over { border-color: #b06a2c; background: #444; }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <label for="file">📂 打开 PDF</label>
+      <input id="file" type="file" accept="application/pdf,.pdf" />
+      <button id="prev">← 上一页</button>
+      <button id="next">下一页 →</button>
+      <span class="info" id="info">第 0 / 0 页</span>
+      <button id="zoomOut">－</button>
+      <span class="info" id="zoom">130%</span>
+      <button id="zoomIn">＋</button>
+    </div>
+    <div id="stage">
+      <div id="err" style="display:none;margin:12px auto;max-width:600px;padding:10px 14px;background:#5a2222;color:#ffe;border-radius:8px;font-size:13px;white-space:pre-wrap"></div>
+      <div class="drop" id="drop">把 PDF 文件拖到这里，或点「打开 PDF」<br />（划词即可看词源，与网页体验一致）</div>
+      <div id="pdfContainer"></div>
+    </div>
+
+    <script src="pdfjs/pdf.min.js"></script>
+    <script src="reader.js"></script>
+    <script src="content.js"></script>
+  </body>
+</html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>生词本 · 词源划词</title>
+    <link rel="stylesheet" href="content.css" />
+    <style>
+      body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f6f3ee; color: #2b2b2b; margin: 0; }
+      .top { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #ece3d6; padding: 14px 18px; z-index: 10; }
+      .top h1 { margin: 0; font-size: 17px; }
+      .top .sub { color: #9a8a72; font-size: 12px; margin-top: 2px; }
+      .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+      .bar input[type="search"] { flex: 1; min-width: 160px; padding: 8px 10px; border: 1px solid #d8cdb8; border-radius: 8px; font-size: 14px; }
+      .bar button { padding: 8px 12px; border: 1px solid #d8cdb8; background: #fff; border-radius: 8px; cursor: pointer; font-size: 13px; }
+      .bar button.primary { background: #b06a2c; color: #fff; border-color: #b06a2c; }
+      .bar button.danger { color: #b3261e; border-color: #e6b3ad; }
+      .cnt { color: #9a8a72; font-size: 12px; margin-left: auto; }
+      .list { padding: 14px 18px 60px; display: grid; gap: 14px; }
+      .card { background: #fff; border: 1px solid #ece3d6; border-radius: 12px; padding: 14px 16px; }
+      .card .hd { display: flex; align-items: center; gap: 10px; }
+      .card .w { font-size: 20px; font-weight: 700; }
+      .card .ph { color: #b06a2c; font-size: 13px; }
+      .card .date { color: #b9ad97; font-size: 11px; margin-left: auto; }
+      .card .acts { display: flex; gap: 6px; }
+      .card .acts button { border: 1px solid #e0d6c2; background: #faf7f1; border-radius: 7px; padding: 4px 9px; font-size: 12px; cursor: pointer; }
+      .card .sec { margin-top: 8px; }
+      .card .sec h4 { margin: 0 0 2px; font-size: 12px; color: #8a6d3b; }
+      .card ul { margin: 4px 0; padding-left: 18px; }
+      .card .ex { margin: 3px 0; }
+      .card .ex b { color: #38322a; }
+      .empty { text-align: center; color: #9a8a72; padding: 60px 20px; }
+      .empty a { color: #b06a2c; }
+    </style>
+  </head>
+  <body>
+    <div class="top">
+      <h1>生词本</h1>
+      <div class="sub">划词保存的单词与词源都在这里，可搜索、朗读、导出。</div>
+      <div class="bar">
+        <input id="filter" type="search" placeholder="搜索单词或释义…" />
+        <button id="exportTxt" title="仅导出单词列表，一行一个">导出单词列表</button>
+        <button id="exportAnki" title="带释义的背词卡，可导入 Anki 等背单词软件">导出背词卡（Anki）</button>
+        <button id="clear" class="danger">清空</button>
+        <span class="cnt" id="cnt"></span>
+      </div>
+    </div>
+    <div class="list" id="list"></div>
+
+    <script src="vocab.js"></script>
+  </body>
+</html>
