@@ -190,7 +190,19 @@ function setAutoPdf(on) {
       { removeRuleIds: PDF_RULE_IDS, addRules: on ? pdfRules() : [] },
       function () {
         if (chrome.runtime.lastError) {
-          console.error("[wordroot] DNR 规则注册失败：", chrome.runtime.lastError.message);
+          const msg = chrome.runtime.lastError.message || "";
+          console.error("[wordroot] DNR 规则注册失败：", msg);
+          // "No SW" / Service worker not running：SW 启动可能延迟，1.5s 后重试一次
+          if (/No SW|service worker/i.test(msg)) {
+            console.warn("[wordroot] SW 未运行，1.5s 后重试注册 DNR");
+            setTimeout(function () {
+              chrome.declarativeNetRequest.updateDynamicRules(
+                { removeRuleIds: PDF_RULE_IDS, addRules: on ? pdfRules() : [] },
+                function () { resolve(); }
+              );
+            }, 1500);
+            return;
+          }
         } else {
           console.log("[wordroot] DNR 规则已" + (on ? "注册" : "移除"));
         }

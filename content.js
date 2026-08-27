@@ -82,19 +82,32 @@
     const fallback = setTimeout(function () {
       if (done) return;
       done = true;
-      body.innerHTML = '<div class="wr-needkey">查询超时，请重试或刷新扩展。</div>';
+      body.innerHTML = '<div class="wr-needkey">查询超时：扩展 Service Worker 未运行。请到 chrome://extensions 点「刷新」加载词源划词。</div>';
     }, 10000);
-    chrome.runtime.sendMessage({ type: "LOOKUP", word: word }, function (res) {
+    // 防御：SW 未运行 / chrome.runtime 不可用时直接走降级，不再 stuck
+    if (!chrome.runtime || !chrome.runtime.sendMessage) {
+      clearTimeout(fallback);
+      body.innerHTML = '<div class="wr-needkey">扩展未运行，请到 chrome://extensions 点「刷新」加载词源划词。</div>';
+      return;
+    }
+    try {
+      chrome.runtime.sendMessage({ type: "LOOKUP", word: word }, function (res) {
+        if (done) return;
+        done = true;
+        clearTimeout(fallback);
+        if (chrome.runtime.lastError) {
+          body.innerHTML = '<div class="wr-loading">扩展未响应</div>';
+          return;
+        }
+        lastLookup = res; // 缓存，供「加入生词本」写入完整词条
+        render(body, word, res);
+      });
+    } catch (e) {
       if (done) return;
       done = true;
       clearTimeout(fallback);
-      if (chrome.runtime.lastError) {
-        body.innerHTML = '<div class="wr-loading">扩展未响应</div>';
-        return;
-      }
-      lastLookup = res; // 缓存，供「加入生词本」写入完整词条
-      render(body, word, res);
-    });
+      body.innerHTML = '<div class="wr-needkey">扩展调用失败：' + escapeHtml(e && e.message ? e.message : String(e)) + '</div>';
+    }
   }
 
   function render(body, word, res) {
