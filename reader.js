@@ -190,10 +190,13 @@
     reader.readAsArrayBuffer(file);
   }
 
-  // ---- 工具栏：PDF / EPUB 模式按钮互斥显示 + 各自绑定事件 ----
+  // ---- 工具栏/容器：PDF / EPUB 模式按钮互斥显示 + 各自绑定事件 ----
   function setToolbarMode(mode) {
     const pdfBtns = document.querySelectorAll(".pdfonly");
     const epubBtns = document.querySelectorAll(".epubonly");
+    // 容器互斥显示
+    document.getElementById("pdfContainer").style.display = mode === "pdf" ? "" : "none";
+    document.getElementById("epubContainer").style.display = mode === "epub" ? "block" : "none";
     if (mode === "epub") {
       pdfBtns.forEach(function (el) { el.style.display = "none"; });
       epubBtns.forEach(function (el) { el.style.display = ""; });
@@ -307,4 +310,21 @@
 
   // 启动时若是自动接管模式（带 ?src=），直接加载
   tryLoadFromSrc();
+
+  // EPUB 章节 iframe（about:srcdoc）内无 chrome.runtime：content.js 通过 postMessage 桥接到这里查词
+  window.addEventListener("message", function (ev) {
+    const d = ev.data || {};
+    if (!d || d.type !== "wr-lookup-req") return;
+    const reply = function (res) {
+      try { ev.source.postMessage({ type: "wr-lookup-res", id: d.id, res: res }, "*"); } catch (e) {}
+    };
+    try {
+      chrome.runtime.sendMessage({ type: "LOOKUP", word: d.word }, function (res) {
+        if (chrome.runtime.lastError) { reply({ type: "error", msg: "扩展未响应" }); return; }
+        reply(res);
+      });
+    } catch (e) {
+      reply({ type: "error", msg: e && e.message ? e.message : String(e) });
+    }
+  });
 })();

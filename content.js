@@ -77,36 +77,58 @@
       p.style.top = top + "px";
       p.style.left = left + "px";
     }
-    // 10 秒超时兜底：避免 background 异常 / SW 未唤醒导致 panel 永远停在查询中
+    // 统一查询入口：直连 chrome.runtime；EPUB 章节 iframe（srcdoc）无 chrome.runtime 时走 postMessage 桥到父页面
+    sendLookup(word, function (res) {
+      lastLookup = res; // 缓存，供「加入生词本」写入完整词条
+      render(body, word, res);
+    });
+  }
+
+  // 查词：优先 chrome.runtime 直连；不可用时桥接父页面（reader.html 内 EPUB 章节 iframe 场景）
+  let _bridgeId = 0;
+  function sendLookup(word, cb) {
     let done = false;
     const fallback = setTimeout(function () {
       if (done) return;
       done = true;
-      body.innerHTML = '<div class="wr-needkey">查询超时：扩展 Service Worker 未运行。请到 chrome://extensions 点「刷新」加载词源划词。</div>';
+      cb({ type: "error", msg: "查询超时，请重试" });
     }, 10000);
-    // 防御：SW 未运行 / chrome.runtime 不可用时直接走降级，不再 stuck
-    if (!chrome.runtime || !chrome.runtime.sendMessage) {
-      clearTimeout(fallback);
-      body.innerHTML = '<div class="wr-needkey">扩展未运行，请到 chrome://extensions 点「刷新」加载词源划词。</div>';
-      return;
-    }
-    try {
-      chrome.runtime.sendMessage({ type: "LOOKUP", word: word }, function (res) {
-        if (done) return;
-        done = true;
-        clearTimeout(fallback);
-        if (chrome.runtime.lastError) {
-          body.innerHTML = '<div class="wr-loading">扩展未响应</div>';
-          return;
-        }
-        lastLookup = res; // 缓存，供「加入生词本」写入完整词条
-        render(body, word, res);
-      });
-    } catch (e) {
+    const finish = function (res) {
       if (done) return;
       done = true;
       clearTimeout(fallback);
-      body.innerHTML = '<div class="wr-needkey">扩展调用失败：' + escapeHtml(e && e.message ? e.message : String(e)) + '</div>';
+      cb(res);
+    };
+    if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
+      try {
+        chrome.runtime.sendMessage({ type: "LOOKUP", word: word }, function (res) {
+          if (chrome.runtime.lastError) { finish({ type: "error", msg: "扩展未响应" }); return; }
+          finish(res);
+        });
+      } catch (e) {
+        finish({ type: "error", msg: e && e.message ? e.message : String(e) });
+      }
+      return;
+    }
+    // 无 chrome.runtime（如 EPUB 章节 iframe）：postMessage 桥接到父页面查词
+    if (window.parent && window.parent.postMessage) {
+      const id = "wr" + (++_bridgeId);
+      const onMsg = function (ev) {
+        const d = ev.data;
+        if (d && d.type === "wr-lookup-res" && d.id === id) {
+          window.removeEventListener("message", onMsg);
+          finish(d.res);
+        }
+      };
+      window.addEventListener("message", onMsg);
+      try {
+        window.parent.postMessage({ type: "wr-lookup-req", id: id, word: word }, "*");
+      } catch (e) {
+        window.removeEventListener("message", onMsg);
+        finish({ type: "error", msg: "扩展未运行" });
+      }
+    } else {
+      finish({ type: "error", msg: "扩展未运行" });
     }
   }
 
