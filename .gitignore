@@ -1,5 +1,6 @@
 # Python
 __pycache__/
 *.pyc
-# 测试产物（生成工具与样本留在 tests-wordroot/，不入库）
+# 测试目录：wordroot/tests/（已纳入版本控制，从原 tests-wordroot/ 移入）
+# 测试进度文件不入库
 *.progress
