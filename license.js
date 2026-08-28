@@ -6,8 +6,7 @@
  *   CONFIG.ENABLED = false（当前状态）：
  *     - can() 恒返回 allowed:true —— 不拦截任何用户，零体验变化
  *     - record() 照常计数 —— 先把真实用量数据攒起来，用数据决定定价
- *     - 默认不发起任何网络请求；仅当用户在选项页勾选「匿名改进计划」后，
- *       才上报纯计数（不含查了什么单词、不含 IP、不可识别个人）
+ *     - 不发起任何网络请求，不加载任何远程脚本（统计仅存本机 chrome.storage.local）
  *
  *   CONFIG.ENABLED = true：
  *     - 按 RULES 拦截未付费用户
@@ -32,13 +31,7 @@
     EXTENSION_ID: "", // ExtensionPay 注册后填入
     DAILY_FREE_LOOKUPS: 15, // 免费层每日查词额度（缓存命中不计数）
     FREE_VOCAB_LIMIT: 50, // 免费层生词本容量上限
-    HISTORY_DAYS: 30, // 保留多少天的用量历史
-    // ---- 匿名聚合上报（默认全关，需用户 opt-in）----
-    REPORT_URL: "", // 接收端地址，留空 = 不上报
-    REPORT_TOKEN: "", // 可选共享密钥（sendBeacon 走 ?t=，fetch 走 header x-wr-token），空 = 不校验
-    REPORT_OPTIN_KEY: "wr_report", // 选项页开关存这里
-    REPORT_LAST_KEY: "wr_report_last", // 当天已上报的日期，去重用
-    ANON_ID_KEY: "wr_anon_id" // 每台机器固定匿名 id，仅服务端按天去重用，不可识别个人
+    HISTORY_DAYS: 30 // 保留多少天的用量历史
   };
 
   // ---- 功能点：改这里调整哪些收费 ----
@@ -67,10 +60,6 @@
   var KEY_USAGE = "wr_usage";
   var KEY_HIST = "wr_usage_hist";
   var KEY_PAID = "wr_paid";
-  // 上报相关 key 单一来源（取自 CONFIG，避免两边不一致）
-  var KEY_REPORT_OPTIN = CONFIG.REPORT_OPTIN_KEY;
-  var KEY_REPORT_LAST = CONFIG.REPORT_LAST_KEY;
-  var KEY_ANON_ID = CONFIG.ANON_ID_KEY;
 
   // ---- 工具 ----
   function todayStr() {
@@ -259,70 +248,6 @@
     return Promise.resolve(false); // ExtensionPay: extpay.openPaymentPage()
   }
 
-  // ---- 匿名聚合上报（仅计数，不含单词/IP，需用户 opt-in）----
-  // 每台机器生成一次固定匿名 id，只用于服务端按天去重，不可反查个人
-  function anonId() {
-    return sGet([KEY_ANON_ID]).then(function (o) {
-      if (o[KEY_ANON_ID]) return o[KEY_ANON_ID];
-      var id = "a" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-      return sSet({ wr_anon_id: id }).then(function () { return id; });
-    });
-  }
-
-  // 真正把 payload 发出去。优先 sendBeacon（页面/SW 卸载也可靠），兜底 fetch keepalive
-  function sendReport(payload) {
-    try {
-      var url = CONFIG.REPORT_URL;
-      if (!url) return false;
-      var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-      if (navigator && navigator.sendBeacon) {
-        // sendBeacon 不支持自定义 header，token 放 query 参数
-        var sep = url.indexOf("?") >= 0 ? "&" : "?";
-        var u = url + sep + "t=" + encodeURIComponent(CONFIG.REPORT_TOKEN || "");
-        return navigator.sendBeacon(u, blob);
-      }
-      fetch(url, {
-        method: "POST",
-        body: blob,
-        keepalive: true,
-        headers: { "Content-Type": "application/json", "x-wr-token": CONFIG.REPORT_TOKEN }
-      }).catch(function () {});
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // 上报当日用量。返回 {sent, reason}。opt-in 关 / 无 URL / 当天已报 / 发送失败 都不发
-  function reportUsage() {
-    return sGet([KEY_REPORT_OPTIN]).then(function (o) {
-      if (!o[KEY_REPORT_OPTIN]) return { sent: false, reason: "optout" };
-      if (!CONFIG.REPORT_URL) return { sent: false, reason: "nourl" };
-      return getUsage().then(function (u) {
-        return sGet([KEY_REPORT_LAST]).then(function (s) {
-          var today = todayStr();
-          if (s[KEY_REPORT_LAST] === today) return { sent: false, reason: "already" };
-          return anonId().then(function (id) {
-            var payload = {
-              v: chrome.runtime && chrome.runtime.getManifest ? chrome.runtime.getManifest().version : "?",
-              date: today,
-              id: id,
-              lookups: u.lookups || 0,
-              llm: u.llm || 0,
-              pdf: u.pdf || 0,
-              epub: u.epub || 0,
-              exports: u.exports || 0,
-              vocabAdds: u.vocabAdds || 0
-            };
-            var ok = sendReport(payload);
-            if (ok) sSet({ wr_report_last: today }); // 无论服务端是否收到都标记，避免疯狂重试
-            return { sent: ok, reason: ok ? "ok" : "failed" };
-          });
-        });
-      });
-    });
-  }
-
   var API = {
     CONFIG: CONFIG,
     FEATURE_NAMES: FEATURE_NAMES,
@@ -336,8 +261,7 @@
     stats: stats,
     resetAll: resetAll,
     paywallHtml: paywallHtml,
-    openPaymentPage: openPaymentPage,
-    reportUsage: reportUsage
+    openPaymentPage: openPaymentPage
   };
 
   root.WR_LICENSE = API;

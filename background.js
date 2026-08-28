@@ -227,16 +227,6 @@ function ensurePdfRule() {
 chrome.runtime.onInstalled.addListener(ensurePdfRule);
 chrome.runtime.onStartup.addListener(ensurePdfRule);
 
-// 匿名聚合上报：每天一次（仅当用户 opt-in 才真发，由 license.js 内部判断）
-try { chrome.alarms.create("wr_daily_report", { periodInMinutes: 24 * 60 }); } catch (e) {}
-if (chrome.alarms && chrome.alarms.onAlarm) {
-  chrome.alarms.onAlarm.addListener(function (a) {
-    if (a.name === "wr_daily_report" && typeof WR_LICENSE !== "undefined") {
-      WR_LICENSE.reportUsage().catch(function () {});
-    }
-  });
-}
-
 // edge-tts 在线中转：请求本机/公网中转服务拿到 mp3 的 ArrayBuffer，交回 content 用 <audio> 播放
 async function handleTtsOnline(relay, text) {
   const url = (relay || "http://localhost:8787").replace(/\/+$/, "") + "/tts";
