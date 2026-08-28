@@ -162,6 +162,13 @@
         '」（离线词库与有道在线都没有该词，可能拼写有误或网络不通）。</div>';
       return;
     }
+    if (res.type === "paywall") {
+      // 付费闸门触发（CONFIG.ENABLED=false 时不会出现）
+      body.innerHTML = WR_LICENSE.paywallHtml(res.feature, res.reason);
+      const btn = body.querySelector('[data-wr-act="upgrade"]');
+      if (btn) btn.addEventListener("click", function (e) { e.stopPropagation(); WR_LICENSE.openPaymentPage(); });
+      return;
+    }
     if (res.type === "error") {
       body.innerHTML = '<div class="wr-needkey">出错了：' + escapeHtml(res.msg || "") + "</div>";
       return;
@@ -445,8 +452,14 @@
         return (typeof it === "string" ? it : it.word) === entry.word;
       });
       if (exists) { toast("已在生词本"); return; }
-      list.push(entry);
-      chrome.storage.local.set({ vocab: list }, function () { toast("已加入生词本 ✓"); });
+      WR_LICENSE.can("vocab", { count: list.length }).then(function (g) {
+        if (!g.allowed) { toast(g.reason); return; }
+        list.push(entry);
+        chrome.storage.local.set({ vocab: list }, function () {
+          WR_LICENSE.record("vocabAdd");
+          toast("已加入生词本 ✓");
+        });
+      });
     });
   }
 

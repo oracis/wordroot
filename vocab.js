@@ -219,16 +219,25 @@ function definitionText(e) {
   if (e.examples && e.examples.length) parts.push("【例句】" + e.examples.map(function (x) { return x.en + "（" + x.zh + "）"; }).join("；"));
   return parts.join("\n");
 }
-document.getElementById("exportTxt").addEventListener("click", function () {
+function guardExport(fn) {
+  return function () {
+    WR_LICENSE.can("export").then(function (g) {
+      if (!g.allowed) { alert(g.reason); return; }
+      WR_LICENSE.record("export");
+      fn();
+    });
+  };
+}
+document.getElementById("exportTxt").addEventListener("click", guardExport(function () {
   download("wordroot-vocab.txt", ALL.map(function (e) { return e.word; }).join("\n") + "\n");
-});
-document.getElementById("exportAnki").addEventListener("click", function () {
+}));
+document.getElementById("exportAnki").addEventListener("click", guardExport(function () {
   // 制表符分隔两列：单词 \t 释义（Anki 导入选「字段分隔符=Tab」）
   const lines = ALL.map(function (e) {
     return e.word + "\t" + definitionText(e).replace(/\t/g, " ").replace(/\n/g, " / ");
   });
   download("wordroot-vocab-anki.txt", lines.join("\n") + "\n");
-});
+}));
 document.getElementById("clear").addEventListener("click", function () {
   if (!ALL.length) return;
   if (!confirm("确定清空全部 " + ALL.length + " 个生词？此操作不可撤销。")) return;

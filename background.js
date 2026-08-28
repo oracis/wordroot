@@ -1,3 +1,6 @@
+// MV3 service worker 用 importScripts 载入同扩展内脚本（不能挂 CDN：MV3 禁止远程代码）
+importScripts("license.js");
+
 // ---- 内置离线词库（-ject 家族，未配 Key 也能演示完整词源格式）----
 const OFFLINE_DICT = {
   trajectory: {
@@ -391,8 +394,15 @@ async function handleLookup(word) {
 }
 async function handleLookupInner(word) {
   const key = word.toLowerCase();
+  // 付费闸门（ENABLED=false 时恒通过，只埋点不拦截）
+  const gate = await WR_LICENSE.can("lookup");
+  if (!gate.allowed) {
+    return { type: "paywall", feature: "lookup", reason: gate.reason, code: gate.code };
+  }
   const cached = await getCache(key);
   if (cached) return { type: "ok", data: cached, cached: true };
+  // 缓存命中不计数（同一个词反复看不该消耗额度），其余都记一次真实查词
+  WR_LICENSE.record("lookup");
   // 1) 内置 -ject 词典
   if (OFFLINE_DICT[key]) return { type: "ok", data: OFFLINE_DICT[key], cached: false };
   // 2) 离线高频词库（COCA 前 3000，含音标+简明释义）
@@ -415,6 +425,7 @@ async function handleLookupInner(word) {
   // 3) 配了 Key：LLM 词源优先；LLM 失败降级有道
   if (settings.apiKey) {
     try {
+      WR_LICENSE.record("llm"); // 只统计，不拦截（用的是用户自己的 Key）
       const data = await callLLM(settings, word);
       await setCache(key, data);
       return { type: "ok", data: data, cached: false };

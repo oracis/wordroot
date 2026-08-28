@@ -62,6 +62,7 @@
   function loadFromUrl(url) {
     clearErr();
     const isEpub = /\.epub(\?|#|$)/i.test(url || "");
+    if (window.WR_LICENSE) WR_LICENSE.record(isEpub ? "epub" : "pdf");
     if (!isEpub && !pdfjsOk) {
       showErr("pdf.js 未加载，无法打开 PDF。请先在扩展管理页点「刷新」后重试。");
       return;
@@ -161,6 +162,7 @@
     if (!file) return;
     clearErr();
     const isEpub = /\.epub$/i.test(file.name || "");
+    if (window.WR_LICENSE) WR_LICENSE.record(isEpub ? "epub" : "pdf");
     drop.textContent = "解析中…";
     const reader = new FileReader();
     reader.onerror = function () { showErr("读取文件失败：" + (reader.error && reader.error.message ? reader.error.message : "未知")); drop.style.display = "block"; };
