@@ -3,7 +3,7 @@
   "name": "词源划词 WordRoot",
   "version": "0.1.0",
   "description": "划词即出词根词缀拆解与联想记忆的英语词典扩展",
-  "permissions": ["storage", "tts", "declarativeNetRequest", "declarativeNetRequestWithHostAccess"],
+  "permissions": ["storage", "tts", "alarms", "declarativeNetRequest", "declarativeNetRequestWithHostAccess"],
   "host_permissions": ["http://localhost/*", "http://127.0.0.1/*", "<all_urls>", "file:///*"],
   "action": {
     "default_popup": "popup.html",

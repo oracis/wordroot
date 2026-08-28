@@ -5,20 +5,27 @@ document.addEventListener("DOMContentLoaded", function () {
   const ttsMode = document.getElementById("ttsMode");
   const ttsRelay = document.getElementById("ttsRelay");
   const autoPdf = document.getElementById("autoPdf");
+  const optReport = document.getElementById("optReport");
   const msg = document.getElementById("msg");
 
-  chrome.storage.local.get(["apiKey", "baseURL", "model", "ttsMode", "ttsRelay", "autoPdf"], function (o) {
+  chrome.storage.local.get(["apiKey", "baseURL", "model", "ttsMode", "ttsRelay", "autoPdf", "wr_report"], function (o) {
     apiKey.value = o.apiKey || "";
     baseURL.value = o.baseURL || "";
     model.value = o.model || "";
     ttsMode.value = o.ttsMode || "youdao";
     ttsRelay.value = o.ttsRelay || "http://localhost:8787";
     autoPdf.checked = o.autoPdf === undefined ? true : !!o.autoPdf;
+    if (optReport) optReport.checked = !!o.wr_report;
   });
 
   const openVocab = document.getElementById("openVocab");
   if (openVocab) openVocab.addEventListener("click", function () {
     chrome.tabs.create({ url: chrome.runtime.getURL("vocab.html") });
+  });
+
+  // 匿名改进计划开关：勾选即生效，不依赖「保存」按钮
+  if (optReport) optReport.addEventListener("change", function () {
+    chrome.storage.local.set({ wr_report: optReport.checked });
   });
 
   // ---- 使用统计（埋点数据，用于定价决策）----
