@@ -1,10 +1,27 @@
 {
   "manifest_version": 3,
   "name": "词源划词 WordRoot",
-  "version": "0.1.0",
-  "description": "划词即出词根词缀拆解与联想记忆的英语词典扩展",
-  "permissions": ["storage", "tts", "declarativeNetRequest", "declarativeNetRequestWithHostAccess"],
-  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*", "<all_urls>", "file:///*"],
+  "version": "1.0.0",
+  "description": "划词即出词根词缀拆解与联想记忆的英语词典扩展，网页 / PDF / EPUB 全支持",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "storage",
+    "tts",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "optional_host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "词源划词"

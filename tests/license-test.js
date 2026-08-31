@@ -177,6 +177,37 @@ function check(name, ok, extra) {
     check("付费墙 HTML 含解锁按钮", /data-wr-act="upgrade"/.test(html) && /立即解锁/.test(html));
   }
 
+  // ---- 10. 关闭状态下也记录「本会被拦截」次数（定价依据，埋点先跑的核心）----
+  {
+    const { L } = makeEnv();
+    for (let i = 0; i < 15; i++) await L.record("lookup"); // 填满免费额度 15
+    await L.can("lookup"); // 第 16 次：超额度 -> 记 1 次闸门（仍放行，因未开启）
+    await L.can("pdf");    // premium_only -> 记 1 次
+    await L.can("epub");   // premium_only -> 记 1 次
+    await L.can("export"); // premium_only -> 记 1 次
+    const u = await L.getUsage();
+    const st = await L.stats();
+    check("关闭状态也记 paywallHits：超额1 + 付费功能3 = 4", u.paywallHits === 4, u);
+    check("stats 汇总 paywallHits=4", st.totals.paywallHits === 4, st.totals);
+    check("stats.paywallDays=1", st.paywallDays === 1, { v: st.paywallDays });
+    // 捕获计数后再验证「仍全部放行」（不真正拦截）
+    check("且仍全部放行（不真正拦截）",
+      (await L.can("lookup")).allowed && (await L.can("pdf")).allowed, {});
+  }
+
+  // ---- 11. 清空统计：仅清用量，付费状态保留 ----
+  {
+    const { L } = makeEnv();
+    await L.record("lookup");
+    await L.record("paywallHit");
+    await L.setPaid({ paid: true, plan: "lifetime", paidAt: Date.now(), source: "test" });
+    await L.resetAll();
+    const u = await L.getUsage();
+    check("resetAll 后今日用量归零", u.lookups === 0 && u.paywallHits === 0, u);
+    const paid = await L.getPaid();
+    check("resetAll 不影响付费状态（paid 仍为 true）", paid.paid === true, paid);
+  }
+
   console.log("\n" + (fail === 0 ? "全部通过" : "有失败") + "：PASS " + pass + " / FAIL " + fail);
   process.exit(fail === 0 ? 0 : 1);
 })();

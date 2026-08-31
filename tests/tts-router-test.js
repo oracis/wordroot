@@ -23,7 +23,9 @@ function makeEnv(ttsMode, ttsRelay) {
   const chrome = {
     runtime: { onMessage: { addListener() {} }, onInstalled: { addListener() {} }, onStartup: { addListener() {} }, getURL: (p) => "chrome-extension://t/" + p, lastError: null },
     storage,
-    declarativeNetRequest: { updateDynamicRules(o, cb) { cb && cb(); } }
+    declarativeNetRequest: { updateDynamicRules(o, cb) { cb && cb(); } },
+    // 测试环境默认授予 localhost 权限，让 online 模式走通
+    permissions: { contains(req, cb) { cb && cb(true); }, request(req, cb) { cb && cb(true); } }
   };
   const fetch = async (url, opts) => {
     calls.push({ url, opts });

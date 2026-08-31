@@ -13,7 +13,7 @@
     </style>
   </head>
   <body>
-    <h3>词源划词 · 设置</h3>
+    <h3 id="title" style="cursor:pointer;user-select:none">词源划词 · 设置</h3>
     <p class="tip">词源联想由你自己的 LLM Key 生成，结果本地缓存，划词内容不出本机。</p>
     <label>API Key（OpenAI 兼容）</label>
     <input id="apiKey" type="password" placeholder="sk-..." />
@@ -47,11 +47,15 @@
     <div id="msg"></div>
     <p style="margin-top:14px"><a id="openVocab" style="color:#b06a2c;cursor:pointer">📚 打开生词本</a></p>
 
-    <hr style="border:0;border-top:1px solid #eee;margin:16px 0" />
-    <h3 style="margin:0 0 4px">使用统计</h3>
-    <p class="tip" id="statsTip">本地统计，仅存在你这台机器上，用于评估用量。</p>
-    <table id="stats" style="width:100%;font-size:13px;border-collapse:collapse"></table>
-    <p class="tip" id="statsFoot"></p>
+    <!-- 开发者模式区块：默认隐藏。连点标题 5 次，或在本页 URL 后加 ?dev=1 打开 -->
+    <div id="statsPanel" style="display:none">
+      <hr style="border:0;border-top:1px solid #eee;margin:16px 0" />
+      <h3 style="margin:0 0 4px">使用统计 <span id="devBadge" style="font-size:11px;color:#b06a2c;font-weight:normal">（开发者模式）</span></h3>
+      <p class="tip" id="statsTip">本地统计，仅存在你这台机器上，用于评估用量与定价。<a id="exitDev" style="color:#b06a2c;cursor:pointer">退出开发者模式</a></p>
+      <table id="stats" style="width:100%;font-size:13px;border-collapse:collapse"></table>
+      <p class="tip" id="statsFoot"></p>
+      <button id="resetStats" style="margin-top:10px;background:#999">清空统计</button>
+    </div>
 
     <script src="license.js"></script>
     <script src="options.js"></script>

@@ -229,7 +229,18 @@ chrome.runtime.onStartup.addListener(ensurePdfRule);
 
 // edge-tts 在线中转：请求本机/公网中转服务拿到 mp3 的 ArrayBuffer，交回 content 用 <audio> 播放
 async function handleTtsOnline(relay, text) {
-  const url = (relay || "http://localhost:8787").replace(/\/+$/, "") + "/tts";
+  const base = (relay || "http://localhost:8787").replace(/\/+$/, "");
+  // 事前检查：本地地址需要用户授予 optional_host_permissions，否则浏览器会直接拦截 fetch
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(base)) {
+    const has = await new Promise(function (r) {
+      try { chrome.permissions.contains({ origins: [base + "/*"] }, r); }
+      catch (e) { r(false); }
+    });
+    if (!has) {
+      throw new Error("未授权本地中转权限：请在选项页保存时允许「本地 localhost」权限");
+    }
+  }
+  const url = base + "/tts";
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

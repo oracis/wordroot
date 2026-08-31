@@ -4,3 +4,5 @@ __pycache__/
 # 测试目录：wordroot/tests/（已纳入版本控制，从原 tests-wordroot/ 移入）
 # 测试进度文件不入库
 *.progress
+# 商店打包产物
+store/build/

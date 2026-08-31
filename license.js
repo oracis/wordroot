@@ -55,7 +55,7 @@
     vocab: { type: "cap", limit: CONFIG.FREE_VOCAB_LIMIT }
   };
 
-  var METRICS = ["lookups", "llm", "pdf", "epub", "exports", "vocabAdds"];
+  var METRICS = ["lookups", "llm", "pdf", "epub", "exports", "vocabAdds", "paywallHits"];
 
   var KEY_USAGE = "wr_usage";
   var KEY_HIST = "wr_usage_hist";
@@ -110,7 +110,7 @@
 
   // 计数。ENABLED 与否都会记 —— 这就是「埋点先跑」的意义
   function record(action, n) {
-    var map = { lookup: "lookups", llm: "llm", pdf: "pdf", epub: "epub", export: "exports", vocabAdd: "vocabAdds" };
+    var map = { lookup: "lookups", llm: "llm", pdf: "pdf", epub: "epub", export: "exports", vocabAdd: "vocabAdds", paywallHit: "paywallHits" };
     var metric = map[action];
     if (!metric) return Promise.resolve(null);
     return getUsage().then(function (u) {
@@ -139,55 +139,58 @@
   // ---- 判定核心 ----
   // can(feature) -> Promise<{allowed, code, reason, left}>
   //   code: disabled | paid | ok | quota_exceeded | premium_only | cap_reached
+  //
+  // 设计要点：**无论是否真正开启强制，都会先算出「本会被拦截」的结果并埋点**。
+  // 这样在 CONFIG.ENABLED=false（埋点先跑）阶段，就能准确统计「假如现在收费，
+  // 会有多少次触发付费墙」——这是定价决策最直接的依据。
   function can(feature, extra) {
-    if (!CONFIG.ENABLED) {
-      return Promise.resolve({ allowed: true, code: "disabled", reason: "", left: null });
-    }
     var rule = RULES[feature];
     if (!rule) return Promise.resolve({ allowed: true, code: "ok", reason: "", left: null });
 
     return Promise.all([getUsage(), getPaid()]).then(function (r) {
       var u = r[0];
       var paid = r[1];
-      if (paid.paid) return { allowed: true, code: "paid", reason: "", left: null };
-
       var name = FEATURE_NAMES[feature] || feature;
 
-      if (rule.type === "open") return { allowed: true, code: "open", reason: "", left: null };
+      // 先算出「如果开启强制，会是什么结果」
+      var decision = "ok";
+      var reason = "";
+      var left = null;
 
-      if (rule.type === "quota") {
+      if (paid.paid) {
+        decision = "paid";
+      } else if (rule.type === "open") {
+        decision = "open";
+      } else if (rule.type === "quota") {
         var used = u[rule.metric] || 0;
-        var left = rule.limit - used;
+        left = rule.limit - used;
         if (left <= 0) {
-          return {
-            allowed: false,
-            code: "quota_exceeded",
-            reason: "今日免费额度已用完（" + name + " " + rule.limit + " 次/天）。解锁后不限次数。",
-            left: 0
-          };
+          decision = "quota_exceeded";
+          reason = "今日免费额度已用完（" + name + " " + rule.limit + " 次/天）。解锁后不限次数。";
         }
-        return { allowed: true, code: "ok", reason: "", left: left };
-      }
-
-      if (rule.type === "cap") {
+      } else if (rule.type === "cap") {
         var count = (extra && extra.count) || 0;
         if (count >= rule.limit) {
-          return {
-            allowed: false,
-            code: "cap_reached",
-            reason: "免费版生词本上限 " + rule.limit + " 个词（当前 " + count + " 个）。解锁后不限容量。",
-            left: 0
-          };
+          decision = "cap_reached";
+          reason = "免费版生词本上限 " + rule.limit + " 个词（当前 " + count + " 个）。解锁后不限容量。";
         }
-        return { allowed: true, code: "ok", reason: "", left: rule.limit - count };
+      } else {
+        decision = "premium_only";
+        reason = "「" + name + "」是付费功能。";
       }
 
-      // premium
+      // 埋点：只要「本会被拦截」就计数（开启或关闭都记），用于估算潜在付费需求
+      var wouldBlock = decision === "quota_exceeded" || decision === "premium_only" || decision === "cap_reached";
+      if (wouldBlock) record("paywallHit");
+
+      // 真正放行与否仍取决于主开关；code 保留原始语义供调用方判断
+      var allowed = CONFIG.ENABLED ? !wouldBlock : true;
+      var code = wouldBlock ? decision : (CONFIG.ENABLED ? decision : "disabled");
       return {
-        allowed: false,
-        code: "premium_only",
-        reason: "「" + name + "」是付费功能。",
-        left: 0
+        allowed: allowed,
+        code: code,
+        reason: CONFIG.ENABLED ? reason : "",
+        left: CONFIG.ENABLED ? left : null
       };
     });
   }
@@ -212,22 +215,36 @@
         return (d.lookups || 0) > 0 || (d.llm || 0) > 0 || (d.pdf || 0) > 0 || (d.epub || 0) > 0;
       }).length;
 
+      // 定价核心：有多少天触发过付费闸门、峰值单日、活跃日人均触发
+      var paywallDays = hist.concat([u]).filter(function (d) {
+        return (d.paywallHits || 0) > 0;
+      }).length;
+
+      var peakPaywall = null;
+      hist.concat([u]).forEach(function (d) {
+        if (!peakPaywall || (d.paywallHits || 0) > (peakPaywall.paywallHits || 0)) peakPaywall = d;
+      });
+
       return {
         enabled: CONFIG.ENABLED,
         today: u,
         history: hist,
         totals: totals,
         activeDays: activeDays,
+        paywallDays: paywallDays,
         trackedDays: hist.length + 1,
         avgLookupsPerActiveDay: activeDays ? Math.round((totals.lookups / activeDays) * 10) / 10 : 0,
+        avgPaywallPerActiveDay: activeDays ? Math.round((totals.paywallHits / activeDays) * 10) / 10 : 0,
         peakDay: peak,
+        peakPaywallDay: peakPaywall,
         paid: o[KEY_PAID] || { paid: false }
       };
     });
   }
 
+  // 清空全部使用统计（不影响付费状态）。供选项页「清空统计」按钮调用。
   function resetAll() {
-    return sSet({ wr_usage: blankUsage(todayStr()), wr_usage_hist: [], wr_paid: { paid: false, plan: null, paidAt: null, source: null } })
+    return sSet({ wr_usage: blankUsage(todayStr()), wr_usage_hist: [] })
       .then(function () { return stats(); });
   }
 
