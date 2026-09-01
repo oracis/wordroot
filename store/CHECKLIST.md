@@ -45,17 +45,21 @@ zip 路径：`store/build/词源划词_WordRoot-1.0.0.zip`
 | **Justification - Host permission: <all_urls>** | "Limited Use Justification：content script 必须在用户访问的任意英文网页上监听划词（核心功能），且 DNR 规则匹配 .pdf 链接需全 URL 模式。未用于收集浏览历史、注入广告、跨站跟踪或行为画像。" | 自填 |
 | **Justification - Optional host: localhost** | "高级 TTS 自建中转功能（用户自部署 tts-relay 后填地址）" | 自填 |
 
-## 3. 截图建议（必做）
+## 3. 截图（必做，逐步指引见 SCREENSHOTS.md）
 
-真实截图比模板有力 10 倍。至少做这 3 张：
+> **详细逐步操作指引（打开方式 / 选什么词 / 怎么截 / 尺寸）已单列在 `store/SCREENSHOTS.md`，照着做即可。**
 
-1. **划词弹出面板**：在英文 Wikipedia 划 "inspector"，显示词根拆解和同根词表
-2. **PDF 划词**：用本扩展打开一份本地 PDF，划 "methodology"，显示面板
-3. **EPUB 划词**：打开任意一本英文 epub（如 Project Gutenberg 下载），划词截图
-4. **选项页**：填了 LLM Key 后的设置面板（注意打码 Key 头部）
-5. **生词本**：导入了几个生词后的列表
+真实截图比模板有力 10 倍。至少做这 5 张（对应 SCREENSHOTS.md 的 5 节）：
 
-截屏工具：Chrome 自带 `chrome://extensions` → 扩展详情 → "Capture screenshots"，或直接 F12 调成手机宽度截。
+1. **网页划词浮动面板**（核心卖点）：英文 Wikipedia 选 "reject"，浮层显示「词根词缀拆解 / 词源 / 联想记忆」—— 离线词库自带拆解，不用设 LLM Key
+2. **PDF 阅读器划词**：本扩展打开本地英文 PDF，划词出面板
+3. **EPUB 阅读器划词**：打开英文 epub，划词出面板
+4. **选项页**：填好 LLM Key 等设置（**截图前把 Key 打码/清空**）
+5. **生词本**：先划词「加入生词本」存几个词，再打开生词本列表
+
+尺寸要求：**1280×800**（最小 640×400）。截完替换 `store/assets/screenshot-1280x800.png` 占位图，并在后台 Screenshots 字段传 3–5 张。
+
+截屏工具：`Win + Shift + S` 框选，或 F12 → 设备工具栏设 1280×800 → 右上「⋯」→ Capture screenshot。
 
 ## 4. 提交后
 

@@ -1,5 +1,33 @@
 // MV3 service worker 用 importScripts 载入同扩展内脚本（不能挂 CDN：MV3 禁止远程代码）
-importScripts("license.js");
+//
+// 必须 try/catch：扩展热重载 / 文件被占用 / SW 反复启停时，importScripts 会抛 NetworkError。
+// 不加拦截的话异常会中断整个 background.js 的执行 —— 连 onMessage 都注册不上，扩展直接变砖。
+// 这里捕获后降级为「全放行」的 stub，保证查词等核心功能不受埋点模块影响。
+try {
+  importScripts("license.js");
+} catch (e) {
+  console.warn("[WordRoot] license.js 加载失败，已降级为全放行模式：", e && e.message ? e.message : String(e));
+}
+
+// 兜底：确保 WR_LICENSE 始终存在（license.js 加载失败或未挂载到 self 时）
+// 语义与 CONFIG.ENABLED=false 一致：只放行，不拦截。
+if (typeof WR_LICENSE === "undefined") {
+  var WR_LICENSE = {
+    CONFIG: { ENABLED: false, DAILY_FREE_LOOKUPS: 15, FREE_VOCAB_LIMIT: 50, HISTORY_DAYS: 30 },
+    FEATURE_NAMES: {},
+    RULES: {},
+    record: function () { return Promise.resolve(); },
+    can: function () { return Promise.resolve({ allowed: true, code: "fallback", reason: "", left: null }); },
+    getUsage: function () { return Promise.resolve({}); },
+    getPaid: function () { return Promise.resolve({ paid: false }); },
+    setPaid: function () { return Promise.resolve(); },
+    refreshPaid: function () { return Promise.resolve({ paid: false }); },
+    stats: function () { return Promise.resolve(null); },
+    resetAll: function () { return Promise.resolve(null); },
+    paywallHtml: function () { return ""; },
+    openPaymentPage: function () { return Promise.resolve(false); }
+  };
+}
 
 // ---- 内置离线词库（-ject 家族，未配 Key 也能演示完整词源格式）----
 const OFFLINE_DICT = {
@@ -137,28 +165,32 @@ JSON 结构必须如下：
 }
 要求：拆解到拉丁/希腊词根；给出 2-3 个同源词联想；常见用法 2-3 条；例句 2 条。`;
 
-chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
-  if (msg && msg.type === "LOOKUP") {
-    handleLookup(msg.word).then(sendResponse).catch(function (e) {
-      sendResponse({ type: "error", msg: "查询异常：" + (e && e.message ? e.message : String(e)) });
-    });
-    return true; // 异步返回
-  }
-  if (msg && msg.type === "TTS_ONLINE") {
-    handleTts(msg.text, msg.relay)
-      .then(function (buf) {
-        const u8 = new Uint8Array(buf);
-        // 传普通数组而非 ArrayBuffer：跨 runtime.sendMessage 的 structured clone 对 ArrayBuffer 不可靠
-        sendResponse({ ok: true, audio: Array.from(u8), type: "audio/mpeg", bytes: u8.byteLength });
-      })
-      .catch(function (e) { sendResponse({ ok: false, error: e.message }); });
-    return true; // 异步返回
-  }
-  if (msg && msg.type === "SET_AUTOPDF") {
-    setAutoPdf(!!msg.value).then(function () { sendResponse({ ok: true }); });
-    return true;
-  }
-});
+// SW 热重载时 chrome 上下文可能已失效（chrome.runtime 变 undefined），
+// 加守卫避免未捕获异常打断后续 DNR 规则注册
+if (chrome && chrome.runtime && chrome.runtime.onMessage) {
+  chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+    if (msg && msg.type === "LOOKUP") {
+      handleLookup(msg.word).then(sendResponse).catch(function (e) {
+        sendResponse({ type: "error", msg: "查询异常：" + (e && e.message ? e.message : String(e)) });
+      });
+      return true; // 异步返回
+    }
+    if (msg && msg.type === "TTS_ONLINE") {
+      handleTts(msg.text, msg.relay)
+        .then(function (buf) {
+          const u8 = new Uint8Array(buf);
+          // 传普通数组而非 ArrayBuffer：跨 runtime.sendMessage 的 structured clone 对 ArrayBuffer 不可靠
+          sendResponse({ ok: true, audio: Array.from(u8), type: "audio/mpeg", bytes: u8.byteLength });
+        })
+        .catch(function (e) { sendResponse({ ok: false, error: e.message }); });
+      return true; // 异步返回
+    }
+    if (msg && msg.type === "SET_AUTOPDF") {
+      setAutoPdf(!!msg.value).then(function () { sendResponse({ ok: true }); });
+      return true;
+    }
+  });
+}
 
 // ---- 自动接管 PDF：把 .pdf 链接重定向到本扩展的 pdf.js 阅读器，从而能在 PDF 上划词 ----
 const PDF_RULE_IDS = [9001, 9002];
@@ -224,23 +256,18 @@ function ensurePdfRule() {
     }
   });
 }
-chrome.runtime.onInstalled.addListener(ensurePdfRule);
-chrome.runtime.onStartup.addListener(ensurePdfRule);
+// 同样守卫：SW 上下文失效时静默跳过，避免整个脚本中断（会导致查词等核心功能不可用）
+if (chrome && chrome.runtime && chrome.runtime.onInstalled) {
+  chrome.runtime.onInstalled.addListener(ensurePdfRule);
+}
+if (chrome && chrome.runtime && chrome.runtime.onStartup) {
+  chrome.runtime.onStartup.addListener(ensurePdfRule);
+}
 
 // edge-tts 在线中转：请求本机/公网中转服务拿到 mp3 的 ArrayBuffer，交回 content 用 <audio> 播放
+// 本地地址由 host_permissions 的 <all_urls> 覆盖，无需动态申请
 async function handleTtsOnline(relay, text) {
-  const base = (relay || "http://localhost:8787").replace(/\/+$/, "");
-  // 事前检查：本地地址需要用户授予 optional_host_permissions，否则浏览器会直接拦截 fetch
-  if (/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(base)) {
-    const has = await new Promise(function (r) {
-      try { chrome.permissions.contains({ origins: [base + "/*"] }, r); }
-      catch (e) { r(false); }
-    });
-    if (!has) {
-      throw new Error("未授权本地中转权限：请在选项页保存时允许「本地 localhost」权限");
-    }
-  }
-  const url = base + "/tts";
+  const url = (relay || "http://localhost:8787").replace(/\/+$/, "") + "/tts";
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

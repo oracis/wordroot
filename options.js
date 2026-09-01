@@ -76,34 +76,23 @@ document.addEventListener("DOMContentLoaded", function () {
   if (exitDev) exitDev.addEventListener("click", function () { setDevMode(false); });
 
   document.getElementById("save").addEventListener("click", function () {
-    // 自建中转：动态申请 localhost 权限（manifest 声明为 optional，避免上架审核敏感）
-    const needsLocal = ttsMode.value === "online" && /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?)$/i.test(ttsRelay.value.trim());
-    function doSave() {
-      chrome.storage.local.set(
-        {
-          apiKey: apiKey.value.trim(),
-          baseURL: baseURL.value.trim(),
-          model: model.value.trim(),
-          ttsMode: ttsMode.value,
-          ttsRelay: ttsRelay.value.trim(),
-          autoPdf: autoPdf.checked
-        },
-        function () {
-          chrome.runtime.sendMessage({ type: "SET_AUTOPDF", value: autoPdf.checked }, function () {
-            msg.textContent = "已保存 ✓";
-            setTimeout(function () { msg.textContent = ""; }, 2000);
-          });
-        }
-      );
-    }
-    if (needsLocal && chrome.permissions && chrome.permissions.request) {
-      chrome.permissions.request({ origins: ["http://localhost/*", "http://127.0.0.1/*"] }, function (granted) {
-        if (granted) doSave();
-        else { msg.textContent = "未授予本地权限，自建中转模式将无法使用"; setTimeout(function () { msg.textContent = ""; }, 3000); }
-      });
-    } else {
-      doSave();
-    }
+    // 自建中转走的是 <all_urls> 已覆盖的本地地址，无需动态申请权限
+    chrome.storage.local.set(
+      {
+        apiKey: apiKey.value.trim(),
+        baseURL: baseURL.value.trim(),
+        model: model.value.trim(),
+        ttsMode: ttsMode.value,
+        ttsRelay: ttsRelay.value.trim(),
+        autoPdf: autoPdf.checked
+      },
+      function () {
+        chrome.runtime.sendMessage({ type: "SET_AUTOPDF", value: autoPdf.checked }, function () {
+          msg.textContent = "已保存 ✓";
+          setTimeout(function () { msg.textContent = ""; }, 2000);
+        });
+      }
+    );
   });
 });
 

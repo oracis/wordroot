@@ -20,8 +20,7 @@
 | `storage` | 保存设置项（API Key、模型、朗读源等）、生词本、查词缓存、使用统计 | 本机配置与用户内容 | ❌ 全部在 `chrome.storage.local` |
 | `tts` | 调用浏览器内置 `chrome.tts` 朗读英文单词 | 查词文本 | ❌ 浏览器本地语音引擎 |
 | `declarativeNetRequest` | 把浏览器中点开的 `.pdf` 链接自动重定向到本扩展内置的 pdf.js 阅读器，从而在 PDF 上也能划词 | 目标 PDF 的 URL | ❌ 仅在浏览器进程内改路由 |
-| `<all_urls>` (host) | ① content script 注入到所有网页以实现划词查词；② 支持 PDF 自动接管；③ 用户配 LLM Key 后访问其自有 API 域名 | 划词文本、目标 URL | 见下表 |
-| `http://localhost/*` 与 `http://127.0.0.1/*` (**optional**) | 高级「自建 TTS 中转」功能需要请求用户本机/局域网的中转服务 | 用户自填的中转 URL 与朗读文本 | 仅在你主动启用并填了中转地址时 |
+| `<all_urls>` (host) | ① content script 注入到所有网页以实现划词查词；② 支持 PDF 自动接管；③ 用户配 LLM Key 后访问其自有 API 域名；④ 高级「自建 TTS 中转」请求 localhost/127.0.0.1 中转服务（已包含在 `<all_urls>` 中） | 划词文本、目标 URL、本地中转 URL | 见下表 |
 
 ### 关于 `<all_urls>` 的 Limited Use Justification
 
