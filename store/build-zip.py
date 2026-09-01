@@ -128,6 +128,21 @@ with zipfile.ZipFile(OUT) as z:
             if r.returncode != 0:
                 warnings.append("%s 语法错误：%s" % (arc, r.stderr.strip().splitlines()[0] if r.stderr else "?"))
 
+# ---- service worker 启动自检 ----
+# 语法正确 ≠ 能启动。background.js 顶层一行抛异常，onMessage 就注册不上，扩展直接变砖，
+# 且 Chrome 报的行号会误导排查。这里在模拟 SW 上下文里完整跑一遍 background.js：
+#   · 正常场景：必须无异常且注册 onMessage
+#   · 降级场景：强制 importScripts 抛 NetworkError，仍必须能注册 onMessage（不能变砖）
+SW_TEST = os.path.join(ROOT, "tests", "sw-boot-test.js")
+if os.path.exists(SW_TEST):
+    r = subprocess.run(["node", SW_TEST], capture_output=True, text=True)
+    if r.returncode != 0:
+        bad = [ln for ln in (r.stdout or "").splitlines() if "FAIL" in ln]
+        warnings.append("background.js 在 SW 上下文启动失败（%d 项）：%s"
+                        % (len(bad), bad[0].strip() if bad else "无输出"))
+else:
+    warnings.append("缺少 SW 启动测试脚本：tests/sw-boot-test.js")
+
 # ---- 上架前自检 ----
 # 1) icons
 icons = m.get("icons", {})
@@ -155,4 +170,4 @@ if warnings:
         print("  -", w)
     sys.exit(1)
 else:
-    print("上架前自检通过：icons / 长度 / 排除项 / 内容一致性 / JS 语法 均 OK")
+    print("上架前自检通过：icons / 长度 / 排除项 / 内容一致性 / JS 语法 / SW 启动 均 OK")

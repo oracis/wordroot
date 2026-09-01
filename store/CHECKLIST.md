@@ -36,7 +36,7 @@ zip 路径：`store/build/词源划词_WordRoot-1.0.0.zip`
 | **Icon** | 上传 `icons/icon-128.png` | 文件 |
 | **Small promo tile (440×280)** | 上传 `store/assets/promo-small-440x280.png` | 文件 |
 | **Marquee promo (1400×560)** | 上传 `store/assets/promo-marquee-1400x560.png` | 文件 |
-| **Screenshots (1280×800, 至少 1 张，建议 3-5)** | 当前 `store/assets/screenshot-1280x800.png` 是占位模板，**请用真实使用截图替换** | 需要手动截 |
+| **Screenshots (1280×800, 至少 1 张，建议 3-5)** | ✅ **已截好 5 张真机截图**：见 `store/assets/shot1-web.png` / `shot2-pdf.png` / `shot3-epub.png` / `shot4-options.png` / `shot5-vocab.png`（同时 `screenshot-1280x800.png` 也已用 shot1 替换占位） | 已完成 |
 | **Privacy policy URL** | `https://github.com/oracis/wordroot/blob/main/PRIVACY.md`（把代码推上 GitHub 后生效） | 仓库 URL |
 | **Justification - Single purpose** | "查词工具：划词即出词根词缀拆解" | 自填 |
 | **Justification - Permission: storage** | "保存设置项（API Key、模型、朗读源）、生词本、查词缓存、使用统计" | 自填 |
@@ -45,21 +45,35 @@ zip 路径：`store/build/词源划词_WordRoot-1.0.0.zip`
 | **Justification - Host permission: <all_urls>** | "Limited Use Justification：content script 必须在用户访问的任意英文网页上监听划词（核心功能），且 DNR 规则匹配 .pdf 链接需全 URL 模式。未用于收集浏览历史、注入广告、跨站跟踪或行为画像。" | 自填 |
 | **Justification - Optional host: localhost** | "高级 TTS 自建中转功能（用户自部署 tts-relay 后填地址）" | 自填 |
 
-## 3. 截图（必做，逐步指引见 SCREENSHOTS.md）
+## 3. 截图（已完成 ✅）
 
-> **详细逐步操作指引（打开方式 / 选什么词 / 怎么截 / 尺寸）已单列在 `store/SCREENSHOTS.md`，照着做即可。**
+5 张 1280×800 真机截图已生成（用 `store/shots/take-shots.js` 自动化截取，本地 127.0.0.1:8765 + Playwright Chromium 加载扩展划词）：
 
-真实截图比模板有力 10 倍。至少做这 5 张（对应 SCREENSHOTS.md 的 5 节）：
+| 截图 | 文件 | 场景 |
+|---|---|---|
+| 1. 网页划词 | `store/assets/shot1-web.png` | 英文文章页划 "reject" → 词根词缀拆解面板 |
+| 2. PDF 划词 | `store/assets/shot2-pdf.png` | 内置 PDF 阅读器划 "reject" → 面板 |
+| 3. EPUB 划词 | `store/assets/shot3-epub.png` | 内置 EPUB 阅读器划 "reject" → 面板 |
+| 4. 选项页 | `store/assets/shot4-options.png` | LLM Key/Base URL/模型/朗读源已配 |
+| 5. 生词本 | `store/assets/shot5-vocab.png` | 收藏的词条（词根/词源/联想/例句卡片） |
 
-1. **网页划词浮动面板**（核心卖点）：英文 Wikipedia 选 "reject"，浮层显示「词根词缀拆解 / 词源 / 联想记忆」—— 离线词库自带拆解，不用设 LLM Key
-2. **PDF 阅读器划词**：本扩展打开本地英文 PDF，划词出面板
-3. **EPUB 阅读器划词**：打开英文 epub，划词出面板
-4. **选项页**：填好 LLM Key 等设置（**截图前把 Key 打码/清空**）
-5. **生词本**：先划词「加入生词本」存几个词，再打开生词本列表
+**商店后台填法**：在 Screenshots 字段把这 5 张按上面顺序上传即可。
 
-尺寸要求：**1280×800**（最小 640×400）。截完替换 `store/assets/screenshot-1280x800.png` 占位图，并在后台 Screenshots 字段传 3–5 张。
+如需重新截图（界面改版时）：
+```bash
+# 1. 装 playwright-core（需 Node.js 18+）
+npm i playwright-core
+# 2. 装 Chromium（首次）
+PLAYWRIGHT_DOWNLOAD_HOST=https://registry.npmmirror.com/-/binary/playwright \
+  npx playwright-core install chromium
+# 3. 跑截图脚本（在 wordroot/ 根目录）
+node store/shots/take-shots.js
+```
 
-截屏工具：`Win + Shift + S` 框选，或 F12 → 设备工具栏设 1280×800 → 右上「⋯」→ Capture screenshot。
+脚本会一次性生成 5 张新截图覆盖 `store/assets/shot*.png`。
+
+> 详细逐步操作指引（手动截图版）仍保留在 `store/SCREENSHOTS.md`，不打算用脚本的可照那份手动截。
+
 
 ## 4. 提交后
 
